@@ -12,6 +12,13 @@ try{await fs.access(path.join(source,'index.html'))}catch{
   for(const name of ['index.html','favicon.svg'])await fs.copyFile(path.join(original,name),path.join(source,name));
 }
 let html=await fs.readFile(path.join(source,'index.html'),'utf8');
+
+html=html.replace(/<div class="logo">[\s\S]*?<\/div>/,'<img class="official-brand-logo" src="./church-logo.png" alt="Tuliao First Grace Baptist Church logo">');
+html=html.replace("$('#sbName').textContent=state.settings.church||'Church';","$('#sbName').textContent='Tuliao First Grace Baptist Church';");
+html=html.replace("document.title=(state.settings.church||'Church')+' — Church Management';","document.title='Tuliao First Grace Baptist Church — Church Management';");
+html=html.replace('<h2>${esc(s.church||\'Our Church\')}</h2>','<div class="official-hero-brand"><img src="./church-logo.png" alt="Tuliao First Grace Baptist Church logo"><h2>Tuliao First Grace Baptist Church</h2></div>');
+html=html.replace('</style>','.official-brand-logo{width:56px;height:56px;flex:0 0 56px;object-fit:contain}.brand>div{min-width:0}.brand b{font-size:15px;line-height:1.3;max-width:none}.official-hero-brand{display:flex;align-items:center;gap:16px;min-width:0}.official-hero-brand img{width:80px;height:80px;object-fit:contain;flex:0 0 80px}.official-hero-brand h2{min-width:0;overflow-wrap:break-word;font-size:clamp(26px,4vw,42px)}@media(max-width:400px){.official-hero-brand{gap:10px}.official-hero-brand img{width:60px;height:60px;flex-basis:60px}}\n</style>');
+
 let app=html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
 if(!app)throw new Error('Church application script missing.');
 app=app.split('/* ========== Boot ========== */')[0];
