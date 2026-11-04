@@ -1,0 +1,28 @@
+{
+	"appId": "org.tfgbc.churchmanagement",
+	"appName": "TFGBC",
+	"webDir": "www",
+	"backgroundColor": "#060D24",
+	"loggingBehavior": "none",
+	"android": {
+		"allowMixedContent": false
+	},
+	"ios": {
+		"contentInset": "never",
+		"preferredContentMode": "mobile"
+	},
+	"plugins": {
+		"CapacitorHttp": {
+			"enabled": false
+		},
+		"CapacitorCookies": {
+			"enabled": false
+		}
+	},
+	"packageClassList": [
+		"AppPlugin",
+		"CAPBrowserPlugin",
+		"FilesystemPlugin",
+		"SharePlugin"
+	]
+}
