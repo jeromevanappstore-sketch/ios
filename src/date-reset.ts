@@ -27,6 +27,12 @@ export function installDateReset(container:HTMLElement){
    .date-selector-part select{width:100%;min-width:0;max-width:100%;min-height:44px;font-size:16px;padding:8px 4px}
    .date-selector-actions{display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;margin-top:12px}
    .date-reset-row .date-selector-note{grid-column:1/-1;font-size:12px;font-weight:400;color:var(--muted,#b5c5e8)}
+   @media(max-width:600px){
+    .attbar>.date-field{grid-column:1/-1;width:100%}
+    .date-selector-parts{grid-template-columns:minmax(0,1fr);gap:12px}
+    .date-selector-part select{padding:10px 12px;min-height:48px}
+    .date-reset-row .date-selector-actions>.btn{grid-column:auto;flex:1 1 auto}
+   }
   `;doc.head.append(style);
  }
  let serial=0;
