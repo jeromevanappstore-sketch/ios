@@ -47,6 +47,7 @@ const cloud=createCloudController({
   status(text,kind){setSave(text,kind)},download,
 });
 installModalScrollGuard(document.querySelector('#modalRoot'));
+installDateReset(document.querySelector('#modalRoot'));
 A.staffSignout=()=>cloud.signOut();
 installPullRefresh({scroller:document.querySelector('#root'),indicator:document.querySelector('#pull-refresh'),canStart:cloud.canPullRefresh,refresh:cloud.refresh});
 const originalAfter=after;after=()=>{originalAfter();if(!cloud.isAdmin())document.querySelectorAll('[data-set]').forEach(input=>input.disabled=true);if(window.TFGBCNative)document.querySelectorAll('[data-act="print"]').forEach(button=>button.innerHTML=I.dl+' Share report')};
@@ -60,7 +61,7 @@ await cloud.start();
 if(document.fonts)document.fonts.ready.then(drawCharts);
 `;
 const generated=path.join(root,'generated');await fs.mkdir(generated,{recursive:true});
-await fs.writeFile(path.join(generated,'app.js'),"import {createCloudController} from '../src/cloud';\nimport {installPullRefresh} from '../src/pull-refresh';\nimport {installModalScrollGuard} from '../src/modal-scroll';\nimport {installNativeBridge} from '../native';\n"+app+adaptation);
+await fs.writeFile(path.join(generated,'app.js'),"import {createCloudController} from '../src/cloud';\nimport {installPullRefresh} from '../src/pull-refresh';\nimport {installModalScrollGuard} from '../src/modal-scroll';\nimport {installDateReset} from '../src/date-reset';\nimport {installNativeBridge} from '../native';\n"+app+adaptation);
 const auth=`<section id="auth-screen" class="auth-screen"><div class="panel auth-card">
 <div class="auth-brand"><img src="./church-logo.png" alt="Tuliao First Grace Baptist Church logo"><div><strong>Tuliao First Grace Baptist Church</strong><small>Church Management</small></div></div>
 <h1 id="auth-title">Staff sign-in</h1><p>One church workspace for members, attendance, giving, and ministry groups.</p>
@@ -80,6 +81,7 @@ for(const directory of ['www','site']){
   await fs.copyFile(path.join(root,'assets/church-logo.png'),path.join(target,'church-logo.png'));await fs.writeFile(path.join(target,'index.html'),html);await fs.copyFile(path.join(source,'favicon.svg'),path.join(target,'favicon.svg'));
 }
 await build({entryPoints:[path.join(generated,'app.js')],bundle:true,format:'esm',platform:'browser',target:'es2022',outfile:path.join(root,'www/mobile.js'),minify:true});
+if(!(await fs.readFile(path.join(root,'www/mobile.js'),'utf8')).includes('TFGBC-date-selector-v2'))throw new Error('Date selector missing from the application bundle.');
 await fs.copyFile(path.join(root,'www/mobile.js'),path.join(root,'site/mobile.js'));
 await fs.mkdir(path.join(root,'site/device'),{recursive:true});await fs.copyFile(path.join(source,'index.html'),path.join(root,'site/device/index.html'));
 await fs.writeFile(path.join(root,'site/_headers'),'/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: no-referrer\n  X-Frame-Options: DENY\n/\n  Cache-Control: no-cache\n/device/*\n  X-Robots-Tag: noindex\n/downloads/*\n  Content-Type: application/vnd.android.package-archive\n  Content-Disposition: attachment\n  Cache-Control: no-cache\n  X-Robots-Tag: noindex\n/downloads/*.ipa\n  Content-Type: application/octet-stream\n  Content-Disposition: attachment\n');

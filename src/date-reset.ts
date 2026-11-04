@@ -16,10 +16,12 @@ export function installDateReset(container:HTMLElement){
  if(!doc.getElementById('tfgbc-date-selector-style')){
   const style=doc.createElement('style');style.id='tfgbc-date-selector-style';
   style.textContent=`
+   .date-field{display:grid;gap:5px;font-size:13px;font-weight:600;color:var(--muted,#b5c5e8)}
    .date-reset-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;min-width:0;max-width:100%}
    .date-reset-row .date-display{text-align:left;justify-content:space-between;white-space:normal;min-width:0;width:100%;min-height:46px;font-size:16px;box-shadow:none}
    .date-selector{grid-column:1/-1;display:block;min-width:0;padding:12px;border:1px solid var(--line,#33436b);border-radius:12px;background:var(--surface2,#15224b)}
    .date-selector[hidden]{display:none!important}
+   .date-reset-row>.btn{grid-column:auto}
    .date-selector-parts{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr) minmax(0,1.15fr);gap:8px;min-width:0}
    .date-selector-part{display:grid;gap:5px;min-width:0;font-size:12px;color:var(--muted,#b5c5e8)}
    .date-selector-part select{width:100%;min-width:0;max-width:100%;min-height:44px;font-size:16px;padding:8px 4px}
@@ -40,10 +42,11 @@ export function installDateReset(container:HTMLElement){
    // A label may only contain one labelable control. The selector has several.
    const wrapper=row.parentElement;
    if(wrapper?.tagName==='LABEL'){
-    const group=doc.createElement('div');group.className=wrapper.className;
+    const group=doc.createElement('div');group.className=wrapper.className+' date-field';
     group.append(...wrapper.childNodes);wrapper.replaceWith(group);
    }
    const name=input.getAttribute('aria-label')||(attendance?'Attendance date':({birth:'Birthday',joined:'Date joined',date:'Giving date'}[input.name])!);
+   row.querySelector('[data-reset-date]')?.setAttribute('aria-label','Reset '+name+' to today');
    const display=doc.createElement('button');display.type='button';display.className='btn ghost date-display';
    display.dataset.dateSelectorVersion='TFGBC-date-selector-v2';
    const panel=doc.createElement('span');panel.className='date-selector';panel.hidden=true;panel.id='tfgbc-date-'+(++serial);
