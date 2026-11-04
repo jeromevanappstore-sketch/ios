@@ -29,9 +29,9 @@ export function installDateReset(container:HTMLElement){
    .date-reset-row .date-selector-note{grid-column:1/-1;font-size:12px;font-weight:400;color:var(--muted,#b5c5e8)}
    @media(max-width:600px){
     .attbar>.date-field{grid-column:1/-1;width:100%}
-    .date-selector-parts{grid-template-columns:minmax(0,1fr);gap:12px}
-    .date-selector-part select{padding:10px 12px;min-height:48px}
-    .date-reset-row .date-selector-actions>.btn{grid-column:auto;flex:1 1 auto}
+    .date-selector-parts{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) minmax(0,1.2fr);gap:8px}
+    .date-selector-part select{padding:8px 4px;min-height:44px}
+    .date-reset-row .date-selector-actions>.btn{grid-column:auto;flex:0 1 auto}
    }
   `;doc.head.append(style);
  }
