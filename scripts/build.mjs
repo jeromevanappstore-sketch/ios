@@ -19,6 +19,11 @@ html=html.replace("document.title=(state.settings.church||'Church')+' — Church
 html=html.replace('<h2>${esc(s.church||\'Our Church\')}</h2>','<div class="official-hero-brand"><img src="./church-logo.png" alt="Tuliao First Grace Baptist Church logo"><h2>Tuliao First Grace Baptist Church</h2></div>');
 html=html.replace('</style>','.official-brand-logo{width:56px;height:56px;flex:0 0 56px;object-fit:contain}.brand>div{min-width:0}.brand b{font-size:15px;line-height:1.3;max-width:none}.official-hero-brand{display:flex;align-items:center;gap:16px;min-width:0}.official-hero-brand img{width:80px;height:80px;object-fit:contain;flex:0 0 80px}.official-hero-brand h2{min-width:0;overflow-wrap:break-word;font-family:Arial,Helvetica,sans-serif;font-size:clamp(26px,4vw,42px);font-weight:600;line-height:1.2;letter-spacing:normal;background:none;-webkit-background-clip:initial;background-clip:initial;color:#fff;filter:none;text-shadow:none;box-shadow:none}@media(max-width:400px){.official-hero-brand{gap:10px}.official-hero-brand img{width:60px;height:60px;flex-basis:60px}}\n</style>');
 
+
+html=html.replace("${s.pastor?`Pastor: ${esc(s.pastor)}.`:''}","");
+html=html.replace('<div class="official-hero-brand"><img src="./church-logo.png" alt="Tuliao First Grace Baptist Church logo"><h2>Tuliao First Grace Baptist Church</h2></div>','<div class="official-hero-brand"><img src="./church-logo.png" alt="Tuliao First Grace Baptist Church logo"><div><h2>Tuliao First Grace Baptist Church</h2><p class="church-address">Zone 5, Tuliao, Santa Barbara, Pangasinan</p></div></div>');
+html=html.replace('</style>','.official-hero-brand>div{min-width:0}.official-hero-brand .church-address{margin:8px 0 0;font:400 15px/1.5 Arial,Helvetica,sans-serif;color:#E2E9FF;max-width:none;filter:none;text-shadow:none}\n</style>');
+
 let app=html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
 if(!app)throw new Error('Church application script missing.');
 app=app.split('/* ========== Boot ========== */')[0];
