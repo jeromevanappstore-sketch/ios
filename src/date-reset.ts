@@ -93,7 +93,7 @@ export function installDateReset(container:HTMLElement){
    }
    const actions=doc.createElement('span');actions.className='date-selector-actions';
    const reset=doc.createElement('button');reset.type='button';reset.className='btn ghost sm';reset.textContent='Reset to today';reset.setAttribute('aria-label','Reset '+name+' to today inside selector');
-   const done=doc.createElement('button');done.type='button';done.className='btn sm';done.textContent=givingMonth?'✓ Apply':'Done';
+   const done=doc.createElement('button');done.type='button';done.className='btn sm';done.textContent='Done';
    actions.append(reset,done);panel.append(parts,actions);
    const note=doc.createElement('span');note.className='date-selector-note';note.setAttribute('role','status');
    // Preserve the ISO form value and name; replace only the system control.
@@ -102,7 +102,7 @@ export function installDateReset(container:HTMLElement){
    display.addEventListener('click',event=>{event.preventDefault();const opening=panel.hidden;sync();panel.hidden=!opening;display.setAttribute('aria-expanded',String(opening))});
    for(const select of [month,year])select.addEventListener('change',()=>{days(Number(day.value));if(!givingMonth)commit(!attendance)});
    day.addEventListener('change',()=>commit(!attendance));
-   function today(event:Event){event.preventDefault();if(givingMonth){panel.hidden=false;display.setAttribute('aria-expanded','true');const [y,m]=localToday().split('-');year.value=y;month.value=String(Number(m));note.textContent='Current month selected. Press ✓ Apply to confirm.'}else{resetDateToToday(input);sync();note.textContent='Set to today: '+display.textContent}}
+   function today(event:Event){event.preventDefault();if(givingMonth){input.value=localToday().slice(0,7);sync();input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}))}else{resetDateToToday(input);sync();note.textContent='Set to today: '+display.textContent}}
    reset.addEventListener('click',today);
    row.querySelector<HTMLButtonElement>('[data-reset-date]')?.addEventListener('click',today);
    done.addEventListener('click',event=>{event.preventDefault();commit();close();display.focus()});
