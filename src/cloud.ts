@@ -6,7 +6,7 @@ import {
 } from '@netlify/identity';
 import type { AuthProvider } from '@netlify/identity';
 
-const API_ORIGIN = 'https://tfgbc-church-management.netlify.app';
+const API_ORIGIN = 'https://majestic-cajeta-4679b8.netlify.app';
 type StaffUser = { id:string; email:string; role:'admin'|'staff' };
 type Workspace = { state:any; revision:number; user:StaffUser; updatedAt:string };
 type Adapter = {
