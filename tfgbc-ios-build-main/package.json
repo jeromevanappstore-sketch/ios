@@ -1,0 +1,33 @@
+{
+  "name": "tfgbc-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "sync": "npm run build && cap sync && node scripts/postprocess-platforms.mjs",
+    "android": "cap open android",
+    "android:build": "node scripts/build-android.mjs",
+    "ios": "cap open ios",
+    "ios:unsigned": "bash scripts/build-ios-unsigned.sh",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/app": "^8.0.0",
+    "@capacitor/browser": "^8.0.5",
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/filesystem": "^8.0.0",
+    "@capacitor/ios": "^8.0.0",
+    "@capacitor/share": "^8.0.0",
+    "@netlify/database": "latest",
+    "@netlify/functions": "latest",
+    "@netlify/identity": "latest"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.0.0",
+    "esbuild": "latest",
+    "sharp": "^0.35.5",
+    "typescript": "latest"
+  }
+}
