@@ -35,6 +35,10 @@ html=html.replace('</style>','.hero .hcopy .greet{color:#fff!important;-webkit-t
 html=html.replace(/<style>([\s\S]*?)<\/style>/g,(_,css)=>'<style>'+css.replaceAll('\\n','\n')+'</style>');
 html=html.replace('<span class="greet">','<span class="greet" style="color:#fff!important;-webkit-text-fill-color:#fff!important;opacity:1">');
 
+
+html=html.replace('<p class="church-address">','<p class="church-address" style="color:#fff!important;-webkit-text-fill-color:#fff!important;opacity:1">');
+html=html.replace('<p>${last?','<p style="color:#fff!important;-webkit-text-fill-color:#fff!important;opacity:1">${last?');
+
 let app=html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
 if(!app)throw new Error('Church application script missing.');
 app=app.split('/* ========== Boot ========== */')[0];
