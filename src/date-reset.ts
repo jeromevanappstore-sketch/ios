@@ -4,7 +4,7 @@ export function localToday(now=new Date()){
  return now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
 }
 export function resetDateToToday(input:HTMLInputElement,now=new Date()){
- input.value=localToday(now);
+ input.value=localToday(now);input.dataset.dateConfirmed='true';
  input.dispatchEvent(new Event('input',{bubbles:true}));
  input.dispatchEvent(new Event('change',{bubbles:true}));
 }
@@ -35,7 +35,7 @@ export function installDateReset(container:HTMLElement){
    }
   `;doc.head.append(style);
  }
- let serial=0;
+ let serial=0;const confirmed=new Map<string,string>();
  function enhance(){
   for(const input of scope.querySelectorAll<HTMLInputElement>('input[type="date"],input[type="month"]#gm')){
    const attendance=input.id==='aDate';
@@ -82,12 +82,13 @@ export function installDateReset(container:HTMLElement){
     const [y,m,d]=value.split('-').map(Number),current=new Date().getFullYear();
     year.replaceChildren();for(let n=Math.max(current+5,y);n>=Math.min(1900,y);n--)option(year,n);
     year.value=String(y);month.value=String(m);days(d);
-    display.textContent='Select date';
+    display.textContent=input.value&&(input.dataset.dateConfirmed==='true'||confirmed.get(input.id)===input.value)?(givingMonth?months[m-1]+' '+y:months[m-1]+' '+d+', '+y):'Select date';
     display.setAttribute('aria-label',name+': '+display.textContent);
    }
    function commit(notify=true){
-    note.textContent='';
+    note.textContent='';input.dataset.dateConfirmed='true';
     input.value=year.value+'-'+month.value.padStart(2,'0')+(givingMonth?'':'-'+day.value.padStart(2,'0'));
+    if(input.id)confirmed.set(input.id,input.value);
     // Attendance redraws the whole page on change. Commit it once on Done.
     if(notify){input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}))}
    }
@@ -102,7 +103,7 @@ export function installDateReset(container:HTMLElement){
    display.addEventListener('click',event=>{event.preventDefault();const opening=panel.hidden;sync();panel.hidden=!opening;display.setAttribute('aria-expanded',String(opening))});
    for(const select of [month,year])select.addEventListener('change',()=>{days(Number(day.value));if(!givingMonth)commit(!attendance)});
    day.addEventListener('change',()=>commit(!attendance));
-   function today(event:Event){event.preventDefault();if(givingMonth){input.value=localToday().slice(0,7);sync();input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}))}else{resetDateToToday(input);sync();note.textContent='Set to today: '+display.textContent}}
+   function today(event:Event){event.preventDefault();if(givingMonth){input.value=localToday().slice(0,7);input.dataset.dateConfirmed='true';confirmed.set(input.id,input.value);sync();input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}))}else{resetDateToToday(input);sync();note.textContent='Set to today: '+display.textContent}}
    reset.addEventListener('click',today);
    row.querySelector<HTMLButtonElement>('[data-reset-date]')?.addEventListener('click',today);
    done.addEventListener('click',event=>{event.preventDefault();commit();close();display.focus()});
