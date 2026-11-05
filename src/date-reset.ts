@@ -37,9 +37,9 @@ export function installDateReset(container:HTMLElement){
  }
  let serial=0;const confirmed=new Map<string,string>();
  function enhance(){
-  for(const input of scope.querySelectorAll<HTMLInputElement>('input[type="date"],input[type="month"]#gm')){
+  for(const input of scope.querySelectorAll<HTMLInputElement>('input[type="date"],input[type="month"]#gm,input[type="month"]#rm')){
    const attendance=input.id==='aDate';
-   const givingMonth=input.id==='gm';
+   const givingMonth=input.id==='gm'||input.id==='rm';
    if(!givingMonth&&!attendance&&!supported.has(input.name))continue;
    if(!input.parentElement?.classList.contains('date-reset-row')){
     const holder=doc.createElement('span');holder.className='date-reset-row';input.replaceWith(holder);holder.append(input);
@@ -52,7 +52,7 @@ export function installDateReset(container:HTMLElement){
     const group=doc.createElement('div');group.className=wrapper.className+' date-field';
     group.append(...wrapper.childNodes);wrapper.replaceWith(group);
    }
-   const name=input.getAttribute('aria-label')||(givingMonth?'Giving month':attendance?'Attendance date':({birth:'Birthday',joined:'Date joined',date:'Giving date'}[input.name])!);
+   const name=input.getAttribute('aria-label')||(givingMonth?(input.id==='rm'?'Report month':'Giving month'):attendance?'Attendance date':({birth:'Birthday',joined:'Date joined',date:'Giving date'}[input.name])!);
    row.querySelector('[data-reset-date]')?.setAttribute('aria-label','Reset '+name+' to today');
    const display=doc.createElement('button');display.type='button';display.className='btn ghost date-display';
    display.dataset.dateSelectorVersion='TFGBC-date-selector-v2';
