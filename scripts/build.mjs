@@ -24,6 +24,11 @@ html=html.replace("${s.pastor?`Pastor: ${esc(s.pastor)}.`:''}","${s.pastor?esc(s
 html=html.replace('<div class="official-hero-brand"><img src="./church-logo.png" alt="Tuliao First Grace Baptist Church logo"><h2>Tuliao First Grace Baptist Church</h2></div>','<div class="official-hero-brand"><img src="./church-logo.png" alt="Tuliao First Grace Baptist Church logo"><div><h2>Tuliao First Grace Baptist Church</h2><p class="church-address">Zone 5, Tuliao, Santa Barbara, Pangasinan</p></div></div>');
 html=html.replace('</style>','.official-hero-brand>div{min-width:0}.official-hero-brand .church-address{margin:8px 0 0;font:400 15px/1.5 Arial,Helvetica,sans-serif;color:#E2E9FF;max-width:none;filter:none;text-shadow:none}\n</style>');
 
+
+html=html.replace(/<div class="scene" id="scene"[\s\S]*?<\/div><\/div>\s*<\/section>/,'</section>');
+html=html.replace("if(!spinOn){spinOn=true;requestAnimationFrame(spin)}","");
+html=html.replace('</style>','.hero{grid-template-columns:minmax(0,1fr)}.hcopy{padding-bottom:28px}\n</style>');
+
 let app=html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
 if(!app)throw new Error('Church application script missing.');
 app=app.split('/* ========== Boot ========== */')[0];

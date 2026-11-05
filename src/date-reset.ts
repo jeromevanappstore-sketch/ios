@@ -82,7 +82,7 @@ export function installDateReset(container:HTMLElement){
     const [y,m,d]=value.split('-').map(Number),current=new Date().getFullYear();
     year.replaceChildren();for(let n=Math.max(current+5,y);n>=Math.min(1900,y);n--)option(year,n);
     year.value=String(y);month.value=String(m);days(d);
-    display.textContent=input.value?(givingMonth?months[m-1]+' '+y:months[m-1]+' '+d+', '+y):'Select date';
+    display.textContent='Select date';
     display.setAttribute('aria-label',name+': '+display.textContent);
    }
    function commit(notify=true){
