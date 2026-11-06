@@ -5,8 +5,11 @@ import {
   requestPasswordRecovery, updateUser,
 } from '@netlify/identity';
 import type { AuthProvider } from '@netlify/identity';
+import { passcodeBoxes } from './passcode-boxes';
 
-const API_ORIGIN = 'https://majestic-cajeta-4679b8.netlify.app';
+const API_ORIGIN = 'https://radiant-chebakia-ed8ab3.netlify.app';
+// Native sessions stay in memory; browser sessions use a Secure HttpOnly cookie.
+let passcodeSession = '';
 type StaffUser = { id:string; email:string; role:'admin'|'staff' };
 type Workspace = { state:any; revision:number; user:StaffUser; updatedAt:string };
 type Adapter = {
@@ -26,7 +29,7 @@ async function api(path:string,method='GET',data?:unknown):Promise<any> {
   if(Capacitor.isNativePlatform()) {
     const response=await CapacitorHttp.request({
       url:API_ORIGIN+'/.netlify/functions/'+path,method,
-      headers:{'Content-Type':'application/json',Origin:Capacitor.getPlatform()==='ios'?'capacitor://localhost':'https://localhost'},
+      headers:{'Content-Type':'application/json',Origin:Capacitor.getPlatform()==='ios'?'capacitor://localhost':'https://localhost',...(passcodeSession?{Authorization:'Bearer '+passcodeSession}:{})},
       ...(data===undefined?{}:{data}),responseType:'json',connectTimeout:15000,readTimeout:30000,
     });
     status=response.status;body=response.data;
@@ -37,7 +40,8 @@ async function api(path:string,method='GET',data?:unknown):Promise<any> {
       ...(data===undefined?{}:{body:JSON.stringify(data)}),
     });
     status=response.status;
-    try{body=await response.json()}catch{throw new ApiError('The church service is unavailable. Please retry shortly.',status)}
+    if(status===204)body=null;
+    else try{body=await response.json()}catch{throw new ApiError('The church service is unavailable. Please retry shortly.',status)}
   }
   if(status<200||status>=300)throw new ApiError(body?.message||body?.error||'The church service could not complete this request.',status);
   return body;
@@ -49,6 +53,43 @@ export function createCloudController(adapter:Adapter) {
   let savedSnapshot='',timer:ReturnType<typeof setTimeout>|undefined;
   let pollTimer:ReturnType<typeof setInterval>|undefined;
   let callbackToken='',mode:'login'|'invite'|'recovery'='login';
+  let legacyLogin=false, enrolling=false;
+  let authenticating=false;
+  const secretInput=el('auth-password') as HTMLInputElement;
+  const boxes=passcodeBoxes(secretInput);
+  const confirmInput=el('auth-confirm') as HTMLInputElement;
+  const confirmBoxes=passcodeBoxes(confirmInput);
+  const secretField=secretInput.closest('label')!;
+  let setupStage=0;
+  const setupBack=document.createElement('button');setupBack.type='button';setupBack.className='btn ghost';setupBack.textContent='Back';setupBack.hidden=true;
+  el('auth-submit').before(setupBack);
+  const setupProgress=document.createElement('p');setupProgress.hidden=true;setupProgress.setAttribute('role','status');setupProgress.setAttribute('aria-live','polite');setupProgress.textContent='Saving your passcode…';
+  el('auth-submit').after(setupProgress);
+  function creationStep(step:number){
+    setupStage=step;secretField.hidden=step===2;
+    el('auth-confirm-field').hidden=step!==2;confirmInput.required=step===2;
+    setupBack.hidden=step!==2;
+    el('auth-submit').hidden=true;
+    if(step===1){confirmInput.value='';confirmBoxes.sync();el('auth-title').textContent='Create your staff passcode';secretInput.focus()}
+    if(step===2){el('auth-title').textContent='Confirm your staff passcode';confirmInput.focus()}
+  }
+  setupBack.addEventListener('click',()=>{if(authenticating)return;error('');secretInput.value='';boxes.sync();creationStep(1)});
+  function pinForm(setup=false){
+    el('auth-email-field').hidden=true;(el('auth-email') as HTMLInputElement).required=false;
+    const password=el('auth-password') as HTMLInputElement;
+    password.type='password';password.inputMode='numeric';password.pattern='[0-9]{6}';password.minLength=6;password.maxLength=6;
+    password.autocomplete=setup?'new-password':'off';password.value='';
+    boxes.show(true);boxes.sync();
+    confirmInput.value='';confirmBoxes.show(true);confirmBoxes.sync();
+    el('auth-secret-label').textContent=setup?'Create your 6-digit passcode':'6-digit passcode';
+    el('auth-confirm-field').hidden=!setup;(el('auth-confirm') as HTMLInputElement).required=setup;
+    el('auth-title').textContent=setup?'Create your staff passcode':'Staff sign-in';
+    el('auth-submit').textContent=setup?'Save passcode and continue':'Sign in';
+    el('auth-submit').hidden=!setup;
+    el('auth-legacy').hidden=setup;el('auth-forgot').hidden=setup;
+    if(setup)creationStep(1);
+    else{setupStage=0;secretField.hidden=false;setupBack.hidden=true}
+  }
   const error=(text:string)=>{el('auth-error').textContent=text};
   const setStatus=(text:string,kind='')=>{
     adapter.status(text,kind);el('cloud-status').textContent=text;
@@ -63,7 +104,7 @@ export function createCloudController(adapter:Adapter) {
     el('auth-email-field').hidden=false;(el('auth-email') as HTMLInputElement).required=true;
     (el('auth-password') as HTMLInputElement).minLength=0;
     (el('auth-password') as HTMLInputElement).autocomplete='current-password';
-    el('auth-submit').textContent='Sign in';
+    legacyLogin=false;enrolling=false;pinForm(false);
   }
   function ready(){
     document.body.dataset.cloudReady='true';el('auth-screen').hidden=true;
@@ -120,38 +161,56 @@ export function createCloudController(adapter:Adapter) {
   }
   async function doLogin(event:SubmitEvent){
     event.preventDefault();const form=event.currentTarget as HTMLFormElement;
+    if(authenticating)return;
+    if(setupStage===1){if(/^\d{6}$/.test(secretInput.value))creationStep(2);return}
     if(!form.reportValidity())return;
     const fields=new FormData(form),email=String(fields.get('email')||'').trim(),password=String(fields.get('password')||'');
     const submit=el('auth-submit') as HTMLButtonElement,setupMode=mode!=='login';submit.disabled=true;error('');
+    authenticating=true;
+    secretInput.blur();confirmInput.blur();
+    setupProgress.textContent=setupStage===2?'Saving your passcode…':'Signing in…';
+    setupProgress.hidden=false;setupProgress.classList.add('auth-submitting');
+    const buttonLabel=submit.textContent;
+    submit.textContent=setupStage===2?'Saving…':'Signing in…';submit.classList.add('auth-submitting');submit.setAttribute('aria-busy','true');
+    form.setAttribute('aria-busy','true');secretInput.readOnly=true;confirmInput.readOnly=true;setupBack.disabled=true;
     try{
-      if(mode==='invite'){
-        const accepted=await acceptInvite(callbackToken,password);
-        // SDK 2.0 accepts the invite without establishing the function cookies.
-        // Complete the session through the public login API before loading records.
-        if(!accepted.email)throw new Error('The invitation did not return an email address.');
-        (el('auth-email') as HTMLInputElement).value=accepted.email;
-        await login(accepted.email,password);
+      if(!legacyLogin){
+        if(setupMode||enrolling){
+          if(password!==(el('auth-confirm') as HTMLInputElement).value)throw new Error('The passcodes do not match.');
+          if(!enrolling){
+            // Identity invitation/recovery establishes verified account ownership.
+            // The generated Identity password is never the six-digit passcode.
+            const randomPassword=Array.from(crypto.getRandomValues(new Uint8Array(32)),v=>v.toString(16).padStart(2,'0')).join('');
+            const account=mode==='invite'?await acceptInvite(callbackToken,randomPassword):await updateUser({password:randomPassword});
+            if(!account.email)throw new Error('The invitation could not identify your staff account.');
+            await login(account.email,randomPassword);
+            callbackToken='';enrolling=true;
+          }
+          const result=await api('passcode','POST',{action:'enroll',code:password});
+          passcodeSession=result.token||'';
+          if(!Capacitor.isNativePlatform())await logout();
+        }else{
+          const result=await api('passcode','POST',{code:password});passcodeSession=result.token||'';
+        }
+        await load(true);resetLoginForm();(el('auth-confirm') as HTMLInputElement).value='';return;
       }
-      else if(mode==='recovery'){
-        const updated=await updateUser({password});
-        if(!updated.email)throw new Error('Password setup did not return an email address.');
-        (el('auth-email') as HTMLInputElement).value=updated.email;
-        await login(updated.email,password);
-      }
-      else if(Capacitor.isNativePlatform())await api('session','POST',{email,password});
+      if(Capacitor.isNativePlatform())await api('session','POST',{email,password});
       else await login(email,password);
-      await load(true);(el('auth-password') as HTMLInputElement).value='';
-      (el('auth-email') as HTMLInputElement).value=user?.email||email;resetLoginForm();
+      // Existing staff can enroll after one final email/password verification.
+      enrolling=true;legacyLogin=false;mode='login';pinForm(true);return;
     }catch(cause){
       const message=(cause as Error).message||'Please try again.';
-      if(setupMode){
-        // Verification may already have consumed the one-time email link.
-        // Always provide ordinary sign-in rather than trapping a used token.
-        resetLoginForm();(el('auth-password') as HTMLInputElement).value='';
-        error('Account setup could not finish: '+message+' Sign in if you already chose a password, or reopen your latest setup email to try again.');
-      }else error(message);
+      const incorrect=!legacyLogin&&!setupMode&&!enrolling&&(cause as ApiError).status===401;
+      error(incorrect?'Passcode is incorrect.':message);
+      if(setupStage===2){confirmInput.value='';confirmBoxes.sync();confirmInput.blur()}
+      if(incorrect){secretInput.value='';boxes.sync();secretInput.blur()}
     }
-    finally{submit.disabled=false}
+    finally{
+      submit.disabled=false;authenticating=false;submit.classList.remove('auth-submitting');submit.removeAttribute('aria-busy');form.removeAttribute('aria-busy');
+      secretInput.readOnly=false;confirmInput.readOnly=false;setupBack.disabled=false;
+      setupProgress.hidden=true;setupProgress.classList.remove('auth-submitting');
+      if(submit.textContent==='Saving…'||submit.textContent==='Signing in…')submit.textContent=buttonLabel;
+    }
   }
   let refreshing=false;
   async function refresh(){
@@ -163,17 +222,48 @@ export function createCloudController(adapter:Adapter) {
     catch{setStatus('Unable to refresh. Check your connection.','err')}
     finally{refreshing=false}
   }
+  let signingOut=false;
   async function signOut(){
+      if(signingOut)return;
       if(dirty||saving||refreshing){setStatus('Wait for your changes to sync before signing out','err');return}
+      signingOut=true;
+      const buttons=Array.from(document.querySelectorAll<HTMLButtonElement>('[data-act="staffSignout"]'));
+      for(const button of buttons){button.disabled=true;button.textContent='Signing out…';button.classList.add('auth-submitting');button.setAttribute('aria-busy','true')}
+      setStatus('Signing out…','busy');
       try{
+        await api('passcode','DELETE');passcodeSession='';
         if(Capacitor.isNativePlatform())await api('session','DELETE');else await logout();
         user=null;adapter.signedOut();resetLoginForm();showAuth();
       }catch{setStatus('Sign-out failed. Check your connection and retry.','err')}
+      finally{
+        signingOut=false;
+        for(const button of buttons){button.disabled=false;button.textContent='Sign out';button.classList.remove('auth-submitting');button.removeAttribute('aria-busy')}
+      }
   }
 
   async function start(){
-    showAuth();startPolling();
+    showAuth();startPolling();resetLoginForm();
     el('auth-form').addEventListener('submit',event=>void doLogin(event as SubmitEvent));
+    confirmInput.addEventListener('input',()=>{
+      if(authenticating)return;
+      error('');
+      if(setupStage===2&&/^\d{6}$/.test(confirmInput.value))
+        (el('auth-form') as HTMLFormElement).requestSubmit();
+    });
+    secretInput.addEventListener('input',()=>{
+      error('');
+      if(setupStage===1&&/^\d{6}$/.test(secretInput.value)){creationStep(2);return}
+      if(!legacyLogin&&!enrolling&&mode==='login'&&/^\d{6}$/.test(secretInput.value)&&!authenticating)
+        (el('auth-form') as HTMLFormElement).requestSubmit();
+    });
+    el('auth-legacy').addEventListener('click',()=>{
+      legacyLogin=true;el('auth-email-field').hidden=false;(el('auth-email') as HTMLInputElement).required=true;
+      const password=el('auth-password') as HTMLInputElement;
+      boxes.show(false);el('auth-submit').hidden=false;
+      password.removeAttribute('pattern');password.inputMode='text';password.minLength=0;password.maxLength=1024;password.autocomplete='current-password';
+      el('auth-secret-label').textContent='Existing password';el('auth-title').textContent='Set up a passcode';
+      el('auth-submit').textContent='Verify account and continue';el('auth-legacy').hidden=true;
+    });
 
     el('block-retry').addEventListener('click',()=>{hideBlocker();void flush()});
     el('block-draft').addEventListener('click',()=>void adapter.download('tfgbc-unsynced-draft.json',JSON.stringify(adapter.snapshot()),'application/json').catch(()=>setStatus('Draft sharing was not completed','err')));
@@ -182,10 +272,11 @@ export function createCloudController(adapter:Adapter) {
       void load(false,true).catch(()=>setStatus('Unable to load the latest records','err'));
     });
     el('auth-forgot').addEventListener('click',async()=>{
+      el('auth-email-field').hidden=false;
       const email=(el('auth-email') as HTMLInputElement).value.trim();
       if(!email){error('Enter your email address first.');return}
       if(Capacitor.isNativePlatform()){
-        error('Reset your password on the church website, then return to this app.');
+        error('Reset your passcode on the church website, then return to this app.');
         try{await Browser.open({url:API_ORIGIN})}catch{error('Open '+API_ORIGIN+' in your browser to reset your password.')}
         return;
       }
@@ -196,21 +287,18 @@ export function createCloudController(adapter:Adapter) {
       if(!Capacitor.isNativePlatform()){
         const result=await handleAuthCallback();
         if(result?.type==='invite'){
-          mode='invite';callbackToken=result.token||'';el('auth-title').textContent='Set up your staff account';
-          (el('auth-email') as HTMLInputElement).required=false;el('auth-email-field').hidden=true;
-          (el('auth-password') as HTMLInputElement).minLength=12;
-          (el('auth-password') as HTMLInputElement).autocomplete='new-password';
-          el('auth-submit').textContent='Create password and continue';return;
+          mode='invite';callbackToken=result.token||'';pinForm(true);return;
         }
         if(result?.type==='recovery'){
-          mode='recovery';el('auth-title').textContent='Choose a new password';
-          (el('auth-email') as HTMLInputElement).required=false;el('auth-email-field').hidden=true;
-          (el('auth-password') as HTMLInputElement).minLength=12;
-          (el('auth-password') as HTMLInputElement).autocomplete='new-password';
-          el('auth-submit').textContent='Save password and continue';return;
+          mode='recovery';pinForm(true);return;
         }
       }
       const settings=Capacitor.isNativePlatform()?(await api('session?settings=1')).settings:await getSettings();
+      // Resume setup after an invitation was accepted but enrollment was interrupted.
+      try{
+        const setup=await api('passcode?setup=1');
+        if(setup.needsSetup){enrolling=true;pinForm(true);return}
+      }catch(cause){if((cause as ApiError).status!==401)throw cause}
       if(!Capacitor.isNativePlatform()){
         for(const [provider,enabled] of Object.entries(settings.providers||{})){
           if(!enabled||provider==='email')continue;

@@ -52,7 +52,7 @@ export function installDateReset(container:HTMLElement){
     const group=doc.createElement('div');group.className=wrapper.className+' date-field';
     group.append(...wrapper.childNodes);wrapper.replaceWith(group);
    }
-   const name=input.getAttribute('aria-label')||(givingMonth?(input.id==='rm'?'Report month':'Giving month'):attendance?'Attendance date':({birth:'Birthday',joined:'Date joined',date:'Giving date'}[input.name])!);
+   const name=input.getAttribute('aria-label')||(givingMonth?(input.id==='rm'?'Report month':'Giving month'):attendance?'Attendance date':({birth:'Birth date',joined:'Baptism date',date:'Giving date'}[input.name])!);
    row.querySelector('[data-reset-date]')?.setAttribute('aria-label','Reset '+name+' to today');
    const display=doc.createElement('button');display.type='button';display.className='btn ghost date-display';
    display.dataset.dateSelectorVersion='TFGBC-date-selector-v2';

@@ -92,10 +92,11 @@ await fs.writeFile(path.join(generated,'app.js'),"import {createCloudController}
 const auth=`<section id="auth-screen" class="auth-screen"><div class="panel auth-card">
 <div class="auth-brand"><img src="./church-logo.png" alt="Tuliao First Grace Baptist Church logo"><div><strong>Tuliao First Grace Baptist Church</strong><small>Church Management</small></div></div>
 <h1 id="auth-title">Staff sign-in</h1><p>One church workspace for members, attendance, giving, and ministry groups.</p>
-<form id="auth-form"><label class="f" id="auth-email-field">Email address<input id="auth-email" name="email" type="email" autocomplete="username" required></label>
-<label class="f">Password<input id="auth-password" name="password" type="password" autocomplete="current-password" required></label>
+<form id="auth-form"><label class="f" id="auth-email-field" hidden>Email address<input id="auth-email" name="email" type="email" autocomplete="username"></label>
+<label class="f"><span id="auth-secret-label">6-digit passcode</span><input id="auth-password" name="password" type="password" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="off" required></label>
+<label class="f" id="auth-confirm-field" hidden>Confirm passcode<input id="auth-confirm" type="password" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="new-password"></label>
 <button class="btn gold" id="auth-submit" type="submit">Sign in</button></form>
-<div id="auth-providers" class="auth-providers"></div><button id="auth-forgot" class="text-button" type="button">Forgot password?</button>
+<div id="auth-providers" class="auth-providers"></div><button id="auth-forgot" class="text-button" type="button">Forgot passcode?</button><button id="auth-legacy" class="text-button" type="button">Set up using my existing account</button>
 <p id="auth-error" role="status" class="auth-message"></p><div class="auth-foot">Access is for authorized church staff. An internet connection is required.</div>
 </div></section>
 <section id="cloud-blocker" class="cloud-blocker" role="dialog" aria-modal="true" aria-labelledby="block-title" hidden><div class="panel"><h2 id="block-title"></h2><p id="block-message"></p><button id="block-draft" class="btn gold">Save my draft backup</button><button id="block-retry" class="btn">Retry sync</button><button id="block-latest" class="btn ghost" hidden>Load latest church records</button></div></section>`;
@@ -108,7 +109,9 @@ for(const directory of ['www','site']){
   await fs.copyFile(path.join(root,'assets/church-logo.png'),path.join(target,'church-logo.png'));await fs.writeFile(path.join(target,'index.html'),html);await fs.copyFile(path.join(source,'favicon.svg'),path.join(target,'favicon.svg'));
 }
 await build({entryPoints:[path.join(generated,'app.js')],bundle:true,format:'esm',platform:'browser',target:'es2022',outfile:path.join(root,'www/mobile.js'),minify:true});
-if(!(await fs.readFile(path.join(root,'www/mobile.js'),'utf8')).includes('TFGBC-date-selector-v2'))throw new Error('Date selector missing from the application bundle.');
+const mobileBundle=await fs.readFile(path.join(root,'www/mobile.js'),'utf8');
+if(!mobileBundle.includes('TFGBC-date-selector-v2'))throw new Error('Date selector missing from the application bundle.');
+if(!mobileBundle.includes('passcode-cell')||!html.includes('6-digit passcode'))throw new Error('Passcode sign-in missing from the application bundle.');
 await fs.copyFile(path.join(root,'www/mobile.js'),path.join(root,'site/mobile.js'));
 await fs.mkdir(path.join(root,'site/device'),{recursive:true});await fs.copyFile(path.join(source,'index.html'),path.join(root,'site/device/index.html'));
 await fs.writeFile(path.join(root,'site/_headers'),'/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: no-referrer\n  X-Frame-Options: DENY\n/\n  Cache-Control: no-cache\n/device/*\n  X-Robots-Tag: noindex\n/downloads/*\n  Content-Type: application/vnd.android.package-archive\n  Content-Disposition: attachment\n  Cache-Control: no-cache\n  X-Robots-Tag: noindex\n/downloads/*.ipa\n  Content-Type: application/octet-stream\n  Content-Disposition: attachment\n');
