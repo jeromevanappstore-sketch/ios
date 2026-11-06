@@ -285,7 +285,7 @@ const pesoShort=n=>n>=1e6?'₱'+(n/1e6).toFixed(1)+'M':n>=1e4?'₱'+(n/1e3).toFi
 const sum=a=>a.reduce((t,g)=>t+Number(g.amount||0),0);
 const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-const SERVICES=['Sunday Worship','Midweek Prayer','Youth Service','Bible Study','Special Event'];
+const SERVICES=['Sunday Service','Prayer Meeting','Youth Devotion','Bible Study','Leadership Training','Special Event'];
 const GTYPES=['Tithe','Offering','Love Gift','Missions','Building Fund','Pledge'];
 const METHODS=['Cash','GCash','Bank Transfer','Check'];
 const GCOLORS=['#1E4FD8','#E0569B','#0EA5A4','#E9A91C','#8B5CF6','#EF6C2F','#16A34A'];
@@ -366,7 +366,7 @@ function seed(){
   const attendance=[];const sun=new Date(now);sun.setDate(sun.getDate()-sun.getDay());
   for(let k=7;k>=0;k--){const d=new Date(sun);d.setDate(d.getDate()-k*7);
     const p=members.filter(m=>m.status!=='Inactive'&&r()<.5+(7-k)*.05).map(m=>m.id);
-    attendance.push({id:uid()+'a'+k,date:isoOf(d),service:'Sunday Worship',present:p,visitors:2+Math.floor(r()*7),notes:''});}
+    attendance.push({id:uid()+'a'+k,date:isoOf(d),service:'Sunday Service',present:p,visitors:2+Math.floor(r()*7),notes:''});}
   const giving=[];
   for(let mo=5;mo>=0;mo--){const base=new Date(now.getFullYear(),now.getMonth()-mo,1);
     const days=mo===0?now.getDate():new Date(base.getFullYear(),base.getMonth()+1,0).getDate();
@@ -382,7 +382,7 @@ function blank(){return{v:1,settings:{church:'TFGBC',pastor:'',address:'',sound:
 /* ========== UI state ========== */
 const ui={view:'dashboard',mq:'',mg:'',ms:'',gm:thisMonth(),gq:'',rm:thisMonth(),att:null,aq:''};
 const memberNo=m=>'M-'+String(m.no).padStart(4,'0');
-const fullName=m=>m?`${m.first} ${m.last}`.trim():'Anonymous';
+const fullName=m=>m?[m.first,m.middle,m.last].filter(Boolean).join(' '):'Anonymous';
 const groupOf=id=>state.groups.find(g=>g.id===id);
 const memberOf=id=>state.members.find(m=>m.id===id);
 function avatar(m,extra=''){
@@ -508,16 +508,17 @@ function membersList(){
 
 function initAtt(date,service,id){
   let ex=id?state.attendance.find(a=>a.id===id):state.attendance.find(a=>a.date===date&&a.service===service);
-  ui.att=ex?{id:ex.id,date:ex.date,service:ex.service,present:new Set(ex.present),visitors:ex.visitors||0}:{id:null,date,service,present:new Set(),visitors:0};
+  ui.att=ex?{id:ex.id,date:ex.date,service:ex.service,present:new Set(ex.present),visitors:ex.visitors||0,notes:ex.notes||''}:{id:null,date,service,present:new Set(),visitors:0,notes:''};
 }
 function vAtt(){
-  if(!ui.att){const d=new Date();initAtt(isoOf(d),d.getDay()===0?'Sunday Worship':SERVICES[0])}
+  if(!ui.att){const d=new Date();initAtt(isoOf(d),SERVICES[0])}
   const a=ui.att,hist=sessions().reverse();
   return pageHead('Attendance','Tap a member to mark them present. Saving updates the record for that date and service.','')+
   `<div class="g2 wide" style="margin-top:0"><div class="panel">
     <div class="attbar"><label class="f">Date<input type="date" id="aDate" value="${a.date}"></label>
       <label class="f">Service<select id="aSvc">${SERVICES.map(x=>`<option ${a.service===x?'selected':''}>${x}</option>`).join('')}</select></label>
       <div class="acts"><button class="btn ghost sm" data-act="attAll">Mark all</button><button class="btn ghost sm" data-act="attNone">Clear</button></div></div>
+    ${a.service==='Special Event'?`<label class="f" style="margin-bottom:16px">Event notes<textarea id="aNotes" maxlength="10000" placeholder="e.g. October Praise, Family Sunday">${esc(a.notes||'')}</textarea></label>`:''}
     <div class="tools" style="margin-bottom:12px"><div class="search">${I.search}<input id="aq" placeholder="Find a member" value="${esc(ui.aq)}"></div></div>
     <div class="roll" id="roll">${rollHTML()}</div>
     <div class="counter"><div><div class="big" id="aCount">${a.present.size}</div><div class="lb">members present</div></div>
@@ -639,7 +640,7 @@ let modalSubmit=null,modalReturnFocus=null;
 function modal(title,body,{ok='Save',onOk,danger=false}={}){
   sfx('open');modalReturnFocus=document.activeElement;modalSubmit=onOk;
   $('#modalRoot').innerHTML=`<div class="ov" data-act="ovClose"><form class="md" id="mform" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="mh"><h3 id="modalTitle">${title}</h3><button type="button" class="ib" data-act="close" aria-label="Close">${I.x}</button></div><div class="mb">${body}</div><div class="mf"><button type="button" class="btn ghost" data-act="close">Cancel</button><button class="btn ${danger?'red':''}" type="submit">${ok}</button></div></form></div>`;
-  const f=$('#mform');setTimeout(()=>f.querySelector('input:not([type=hidden]):not([type=file]),select')?.focus(),60);
+  const f=$('#mform');setTimeout(()=>{if(f.isConnected)f.querySelector(['Add member','Add group'].includes(title)?'button[data-act="close"]':'input:not([type=hidden]):not([type=file]),select')?.focus({preventScroll:true})},60);
   f.onsubmit=e=>{e.preventDefault();if(!f.reportValidity())return;const d=Object.fromEntries(new FormData(f));if(modalSubmit&&modalSubmit(d)!==false)closeModal()};
 }
 function closeModal(){$('#modalRoot').innerHTML='';modalSubmit=null;if(modalReturnFocus?.isConnected)modalReturnFocus.focus();modalReturnFocus=null}
@@ -653,27 +654,28 @@ let tt;function toast(t){clearTimeout(tt);document.querySelectorAll('.toast').fo
 
 /* ========== Member form ========== */
 function memberForm(m){
-  m=m||{first:'',last:'',gender:'',birth:'',phone:'',email:'',address:'',groupId:'',status:'Active',joined:today(),notes:'',photo:''};
+  m=m||{first:'',middle:'',last:'',gender:'',birth:'',phone:'',email:'',address:'',groupId:'',status:'Active',joined:today(),notes:'',photo:''};
   const prev=m.first?avatar(m):`<span class="av" style="background:var(--surface2);color:var(--muted)">${I.users}</span>`;
   return`<div class="fg">
   <div class="full photo"><span id="phPrev">${prev}</span><div><label class="btn ghost sm" style="cursor:pointer">Upload photo<input type="file" accept="image/*" id="phFile" hidden></label> <button type="button" class="btn ghost sm" data-act="phClear">Remove</button><div style="color:var(--muted);font-size:12px;margin-top:4px">${m.no?'Member no. '+memberNo(m):'Member no. assigned on save: '+memberNo({no:state.settings.nextNo})}</div></div><input type="hidden" name="photo" id="phData" value="${m.photo||''}"></div>
-  <label class="f">First name<input name="first" required value="${esc(m.first)}"></label>
-  <label class="f">Last name<input name="last" required value="${esc(m.last)}"></label>
+  <label class="f">Last Name<input name="last" required value="${esc(m.last)}"></label>
+  <label class="f">First Name<input name="first" required value="${esc(m.first)}"></label>
+  <label class="f">Middle Name<input name="middle" value="${esc(m.middle||'')}"></label>
   <label class="f">Gender<select name="gender"><option value="">Select</option>${['Male','Female'].map(x=>`<option ${m.gender===x?'selected':''}>${x}</option>`).join('')}</select></label>
-  <label class="f">Birthday<input type="date" name="birth" value="${m.birth||''}"></label>
-  <label class="f">Mobile number<input name="phone" inputmode="tel" value="${esc(m.phone)}" placeholder="09XX XXX XXXX"></label>
-  <label class="f">Email<input type="email" name="email" value="${esc(m.email)}"></label>
+  <label class="f">Birth Date<input type="date" name="birth" value="${m.birth||''}"></label>
+  <label class="f">Mobile Number<input name="phone" inputmode="tel" value="${esc(m.phone)}" placeholder="09XX XXX XXXX"></label>
+  <label class="f">Email Address<input type="email" name="email" value="${esc(m.email)}"></label>
   <label class="f full">Address<input name="address" value="${esc(m.address)}"></label>
   <label class="f">Group<select name="groupId"><option value="">No group</option>${state.groups.map(g=>`<option value="${g.id}" ${m.groupId===g.id?'selected':''}>${esc(g.name)}</option>`).join('')}</select></label>
   <label class="f">Status<select name="status">${['Active','Visitor','Inactive'].map(x=>`<option ${m.status===x?'selected':''}>${x}</option>`).join('')}</select></label>
-  <label class="f">Date joined<input type="date" name="joined" value="${m.joined||''}"></label>
+  <label class="f">Baptism Date<input type="date" name="joined" value="${m.joined||''}"></label>
   <label class="f full">Notes<textarea name="notes" placeholder="Baptism date, family, prayer requests">${esc(m.notes)}</textarea></label></div>`;
 }
 function openMember(id){
   const m=id?memberOf(id):null;
   modal(m?'Edit member':'Add member',memberForm(m),{ok:m?'Save changes':'Add member',onOk:d=>{
     if(!d.first.trim()||!d.last.trim()){toast('Enter both first and last name');return false}
-    d.first=d.first.trim();d.last=d.last.trim();
+    d.first=d.first.trim();d.middle=(d.middle||'').trim();d.last=d.last.trim();
     if(m)Object.assign(m,d);else{state.members.push({id:uid(),no:state.settings.nextNo++,...d});}
     sfx('success');toast(m?'Member updated':`${d.first} added as ${memberNo({no:state.settings.nextNo-1})}`);commit();}});
 }
@@ -684,7 +686,7 @@ function openGiving(id){
   const ms=[...state.members].sort((a,b)=>a.last.localeCompare(b.last));
   modal(id?'Edit giving':'Record giving',`<div class="fg">
     <label class="f">Date<input type="date" name="date" value="${g.date}" required></label>
-    <label class="f">Giver<select name="memberId"><option value="">Anonymous</option>${ms.map(m=>`<option value="${m.id}" ${g.memberId===m.id?'selected':''}>${esc(m.last+', '+m.first)}</option>`).join('')}</select></label>
+    <label class="f">Giver<select name="memberId"><option value="">Anonymous</option>${ms.map(m=>`<option value="${m.id}" ${g.memberId===m.id?'selected':''}>${esc(m.last+', '+[m.first,m.middle].filter(Boolean).join(' '))}</option>`).join('')}</select></label>
     <label class="f">Type<select name="type">${GTYPES.map(t=>`<option ${g.type===t?'selected':''}>${t}</option>`).join('')}</select></label>
     <label class="f">Amount (₱)<input type="number" name="amount" min="0" step="0.01" inputmode="decimal" value="${g.amount}" required placeholder="0.00"></label>
     <label class="f">Method<select name="method">${METHODS.map(t=>`<option ${g.method===t?'selected':''}>${t}</option>`).join('')}</select></label>
@@ -784,11 +786,11 @@ function validateBackup(d) {
     if (no < 1 || no >= Number.MAX_SAFE_INTEGER || memberNos.has(no)) fail('member numbers must be unique positive integers');
     memberNos.add(no);
     largestNo = Math.max(largestNo, no);
-    const first = text(m.first, 'first name').trim(), last = text(m.last, 'last name').trim();
+    const first = text(m.first, 'first name').trim(), middle = text(m.middle, 'middle name').trim(), last = text(m.last, 'last name').trim();
     if (!first || !last) fail('member first and last names are required');
     const groupId = id(m.groupId, 'member group ID', true);
     return {
-      id: recordId(m.id, 'member ID'), no, first, last,
+      id: recordId(m.id, 'member ID'), no, last, first, middle,
       gender: choice(m.gender === undefined ? '' : m.gender, ['', 'Male', 'Female'], 'gender'),
       birth: date(m.birth, 'birthday', true), phone: text(m.phone, 'mobile number'),
       email: text(m.email, 'email'), address: text(m.address, 'member address'),
@@ -798,12 +800,12 @@ function validateBackup(d) {
     };
   });
   const memberIds = new Set(members.map(m => m.id));
-  const services = ['Sunday Worship', 'Midweek Prayer', 'Youth Service', 'Bible Study', 'Special Event'];
+  const services = ['Sunday Service', 'Prayer Meeting', 'Youth Devotion', 'Bible Study', 'Leadership Training', 'Special Event'];
   const serviceKeys = new Set();
   const attendance = d.attendance.map(value => {
     const a = object(value, 'attendance');
     const checkedDate = date(a.date, 'attendance date');
-    const service = choice(a.service, services, 'service');
+    const service = choice(a.service==='Sunday Worship'?'Sunday Service':a.service==='Midweek Prayer'?'Prayer Meeting':a.service==='Youth Service'?'Youth Devotion':a.service, services, 'service');
     const serviceKey = checkedDate + ':' + service;
     if (serviceKeys.has(serviceKey)) fail('duplicate attendance date and service');
     serviceKeys.add(serviceKey);
@@ -855,14 +857,14 @@ const A={
   attTog(el){const id=el.dataset.id,p=ui.att.present;if(p.has(id)){p.delete(id);el.classList.remove('on');sfx('unmark')}else{p.add(id);el.classList.add('on');sfx('mark')}el.setAttribute('aria-pressed',String(p.has(id)));updCount()},
   attAll(){state.members.filter(m=>m.status!=='Inactive').forEach(m=>ui.att.present.add(m.id));$('#roll').innerHTML=rollHTML();updCount();sfx('success')},
   attNone(){ui.att.present.clear();$('#roll').innerHTML=rollHTML();updCount();sfx('unmark')},
-  attSave(){const a=ui.att;if(!a.date){toast('Pick a date first');return}
-    const rec={id:a.id||uid(),date:a.date,service:a.service,present:[...a.present],visitors:Number(a.visitors)||0,notes:''};
+  attSave(){const a=ui.att;if(!a.id&&!state.members.length){toast('Add members first before saving attendance');return}if(!a.date){toast('Pick a date first');return}
+    const rec={id:a.id||uid(),date:a.date,service:a.service,present:[...a.present],visitors:Number(a.visitors)||0,notes:a.notes||''};
     const dup=state.attendance.find(x=>x.date===a.date&&x.service===a.service&&x.id!==rec.id);if(dup)state.attendance=state.attendance.filter(x=>x!==dup);
     const i=state.attendance.findIndex(x=>x.id===rec.id);i>=0?state.attendance[i]=rec:state.attendance.push(rec);a.id=rec.id;
     sfx('success');toast(`Saved — ${sessTotal(rec)} attended ${rec.service}`);commit();},
   attEdit(el){initAtt(null,null,el.dataset.id);ui.aq='';sfx('tap');render();scrollPageTop('smooth')},
   attDel(el){const s=state.attendance.find(x=>x.id===el.dataset.id);confirmBox('Delete attendance?',`${esc(s.service)} on ${fmtDate(s.date)} will be removed.`,'Delete',()=>{state.attendance=state.attendance.filter(x=>x!==s);if(ui.att&&ui.att.id===s.id)ui.att=null;sfx('del');toast('Attendance deleted');commit();})},
-  csvMembers(){download(slug()+'-members.csv',csv([['Member No','First Name','Last Name','Gender','Birthday','Mobile','Email','Address','Group','Status','Date Joined','Notes'],...state.members.map(m=>[memberNo(m),m.first,m.last,m.gender,m.birth,m.phone,m.email,m.address,groupOf(m.groupId)?.name||'',m.status,m.joined,m.notes])]),'text/csv');sfx('success');toast('Members exported')},
+  csvMembers(){download(slug()+'-members.csv',csv([['Member No','Last Name','First Name','Middle Name','Gender','Birth Date','Mobile Number','Email Address','Address','Group','Status','Baptism Date','Notes'],...state.members.map(m=>[memberNo(m),m.last,m.first,m.middle||'',m.gender,m.birth,m.phone,m.email,m.address,groupOf(m.groupId)?.name||'',m.status,m.joined,m.notes])]),'text/csv');sfx('success');toast('Members exported')},
   csvGiving(){const m=ui.view==='reports'?ui.rm:ui.gm;download(slug()+'-giving-'+m+'.csv',csv([['Date','Giver','Type','Amount','Method','Reference'],...state.giving.filter(g=>g.date.startsWith(m)).sort((a,b)=>a.date<b.date?-1:1).map(g=>[g.date,fullName(memberOf(g.memberId)),g.type,g.amount,g.method,g.ref])]),'text/csv');sfx('success');toast('Giving exported')},
   csvAtt(){download(slug()+'-attendance.csv',csv([['Date','Service','Members Present','Visitors','Total','Names'],...sessions().map(s=>[s.date,s.service,s.present.length,s.visitors,sessTotal(s),s.present.map(i=>fullName(memberOf(i))).join('; ')])]),'text/csv');sfx('success');toast('Attendance exported')},
   print(){sfx('tap');window.print()},
@@ -890,6 +892,7 @@ document.addEventListener('input',e=>{
   else if(t.id==='aq'){ui.aq=t.value;$('#roll').innerHTML=rollHTML()}
   else if(t.id==='gq'){ui.gq=t.value;const p=t.selectionStart;render();const n=$('#gq');n.focus();n.setSelectionRange(p,p)}
   else if(t.id==='aVis'){ui.att.visitors=Math.max(0,parseInt(t.value)||0);updCount()}
+  else if(t.id==='aNotes'){ui.att.notes=t.value}
   else if(t.dataset.set){state.settings[t.dataset.set]=t.value;persist();renderNav()}
 });
 document.addEventListener('change',e=>{
