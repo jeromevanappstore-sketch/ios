@@ -19,11 +19,10 @@ xcrun --sdk iphoneos --show-sdk-path >/dev/null
 [[ -f node_modules/@capacitor/cli/bin/capacitor ]] || fail "Dependencies are missing. Run npm ci first."
 [[ -d ios/App/App.xcodeproj ]] || fail "The native Xcode project is missing from this source package."
 
-# Build only application assets. This script does not deploy the website, modify
-# staff accounts, or require any Apple credentials or signing secrets.
-npm run build
-node node_modules/@capacitor/cli/bin/capacitor sync ios
-node scripts/postprocess-platforms.mjs
+# The latest web bundle and Capacitor assets are committed under
+# ios/App/App/public. Do not regenerate them here from an older source snapshot.
+# This script does not deploy the website, modify staff accounts, or require
+# Apple credentials or signing secrets.
 
 # Keep intermediate files under the existing ignored iOS build directory. A
 # unique directory avoids deleting or reusing any previous archive/staging tree.

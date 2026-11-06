@@ -1,8 +1,6 @@
 name: Build unsigned TFGBC iOS package
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -15,14 +13,10 @@ jobs:
       DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
     timeout-minutes: 20
     steps:
-      - name: Download exact application source
-        timeout-minutes: 4
-        shell: bash
-        run: |
-          curl --fail --location --retry 3 --connect-timeout 20 --max-time 180 \
-            "https://codeload.github.com/${GITHUB_REPOSITORY}/tar.gz/${GITHUB_SHA}" \
-            --output "$RUNNER_TEMP/tfgbc-source.tar.gz"
-          tar -xzf "$RUNNER_TEMP/tfgbc-source.tar.gz" --strip-components=1 -C "$GITHUB_WORKSPACE"
+      - name: Check out application source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Set up Node
         uses: actions/setup-node@v7
         with:
@@ -40,4 +34,4 @@ jobs:
             downloads/TFGBC-ios-unsigned.ipa
             downloads/TFGBC-ios-unsigned.ipa.sha256
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 1
