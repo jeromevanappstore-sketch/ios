@@ -8,9 +8,7 @@ permissions:
 
 jobs:
   ios-unsigned:
-    runs-on: macos-15-intel
-    env:
-      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+    runs-on: macos-26-intel
     timeout-minutes: 20
     steps:
       - name: Check out application source
@@ -35,3 +33,4 @@ jobs:
             downloads/TFGBC-ios-unsigned.ipa.sha256
           if-no-files-found: error
           retention-days: 1
+
