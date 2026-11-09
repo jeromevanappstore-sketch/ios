@@ -1,0 +1,67 @@
+name: Compile TFGBC Home Screen icon
+on:
+  workflow_dispatch:
+  push:
+    paths: ['.github/workflows/ios-icon-appearances.yml']
+permissions:
+  contents: read
+jobs:
+  compile:
+    runs-on: macos-26
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Compile layered icon and legacy fallbacks
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          mkdir -p icon-work/AppIcon.icon/Assets icon-work/Support.xcassets icon-output
+          catalog=ios/App/App/Assets.xcassets
+          cp "$catalog/Contents.json" icon-work/Support.xcassets/
+          cp -R "$catalog/Splash.imageset" icon-work/Support.xcassets/
+          curl -fLsS --retry 2 https://tfgbc-church.jerome-testflight.workers.dev/church-logo.png -o icon-work/seal.png
+          echo '7502899ec0279ff17d0c012187d2e1eed587c0be9cebdc524c2e346869106e1c  icon-work/seal.png' | shasum -a 256 -c -
+          sips -z 938 938 icon-work/seal.png --out icon-work/AppIcon.icon/Assets/Seal.png
+          cat > icon-work/AppIcon.icon/Assets/Mono.svg <<'SVG'
+          <svg xmlns="http://www.w3.org/2000/svg" width="938" height="938" viewBox="0 0 938 938">
+            <circle cx="469" cy="469" r="382" stroke="#a0a0a0" stroke-width="30" fill="none"/>
+            <path d="M469 527c-77-56-156-58-249-29l-31 160c98-32 188-20 280 32 92-52 182-64 280-32l-31-160c-93-29-172-27-249 29Z" fill="none" stroke="#fff" stroke-width="35" stroke-linejoin="round"/>
+            <path d="M469 531v137m0-418v204m-81-128h162" fill="none" stroke="#fff" stroke-width="37" stroke-linecap="round"/>
+          </svg>
+          SVG
+          cat > icon-work/AppIcon.icon/icon.json <<'JSON'
+          {
+            "fill-specializations": [
+              {"value":{"solid":"extended-gray:1.00000,1.00000"}},
+              {"appearance":"dark","value":"system-dark"}
+            ],
+            "groups": [{
+              "layers": [{
+                "name":"Church seal",
+                "image-name-specializations":[{"value":"Seal.png"},{"appearance":"tinted","value":"Mono.svg"}],
+                "glass-specializations":[{"value":false},{"appearance":"tinted","value":true}],
+                "position":{"scale":1,"translation-in-points":[0,0]}
+              }],
+              "lighting":"individual",
+              "specular":true,
+              "translucency-specializations":[{"value":{"enabled":false,"value":0}},{"appearance":"tinted","value":{"enabled":true,"value":0.6}}]
+            }],
+            "supported-platforms":{"squares":"shared"}
+          }
+          JSON
+          xcrun --sdk iphoneos actool icon-work/AppIcon.icon icon-work/Support.xcassets \
+            --compile icon-output --app-icon AppIcon --platform iphoneos \
+            --minimum-deployment-target 15.0 --target-device iphone --target-device ipad \
+            --output-partial-info-plist icon-output/icon-info.plist --errors --warnings --notices
+          test -s icon-output/Assets.car
+          /usr/bin/assetutil --info icon-output/Assets.car > icon-output/catalog-info.json
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconName' icon-output/icon-info.plist
+      - uses: actions/upload-artifact@v7
+        with:
+          name: TFGBC-compiled-icon
+          path: icon-output/
+          if-no-files-found: error
+          retention-days: 2
